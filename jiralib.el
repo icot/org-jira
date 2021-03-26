@@ -1031,12 +1031,12 @@ Return no more than MAX-NUM-RESULTS."
 
 (defun jiralib-get-users (project-key)
   "Return assignable users information given the PROJECT-KEY."
-  (unless jiralib-users-cache
-    (setq jiralib-users-cache
-          (jiralib-call "getUsers" nil project-key))
-    (loop for (name . id) in org-jira-users do
-          (setf jiralib-users-cache (append (list (jiralib-get-user id)) jiralib-users-cache))))
-  jiralib-users-cache)
+  (if (null (assoc project-key jiralib-users-cache))
+    (cdr (setq jiralib-users-cache
+          (acons project-key
+           (jiralib-call "getUsers" nil project-key)
+           jiralib-users-cache)))
+    (cdr (assoc project-key jiralib-users-cache))))
 
 (defun jiralib-get-versions (project-key)
   "Return all versions available in project PROJECT-KEY."
