@@ -125,13 +125,17 @@
 (require 'jiralib)
 (require 'org-jira-sdk)
 
-(defconst org-jira-version "4.3.1"
+(defconst org-jira-version "4.4.0"
   "Current version of org-jira.el.")
 
 (defgroup org-jira nil
   "Customization group for org-jira."
   :tag "Org JIRA"
   :group 'org)
+
+(defcustom org-jira-cloud t
+  "Talk to Jira Cloud or Server"
+  :group 'org-jira)
 
 (defcustom org-jira-working-dir "~/.org-jira"
   "Folder under which to store org-jira working files."
@@ -604,13 +608,15 @@ Entry to this mode calls the value of `org-jira-mode-hook'."
 
 (defun org-jira-get-assignable-users (project-key)
   "Get the list of assignable users for PROJECT-KEY, adding user set jira-users first."
-  (append
-   '(("Unassigned" . ""))
-   org-jira-users
-   (mapcar (lambda (user)
+  (let ((id-symbol (if org-jira-cloud 'accountID 'name))
+        (unassigned-value (if org-jira-cloud "" "Unassigned")))
+    (append
+     `(("Unassigned" . ,unassigned-value))
+     org-jira-users
+     (mapcar (lambda (user)
              (cons (org-jira-decode (cdr (assoc 'displayName user)))
-                   (org-jira-decode (cdr (assoc 'accountId user)))))
-           (jiralib-get-users project-key))))
+                   (org-jira-decode (cdr (assoc id-symbol user)))))
+           (jiralib-get-users project-key)))))
 
 (defun org-jira-get-reporter-candidates (project-key)
   "Get the list of assignable users for PROJECT-KEY, adding user set jira-users first."
@@ -1734,6 +1740,7 @@ that should be bound to an issue."
   (let* ((project-components (jiralib-get-components project))
          (jira-users (org-jira-get-assignable-users project))
          (user (completing-read "Assignee: " (mapcar 'car jira-users)))
+         (assignee-parameter (if org-jira-cloud 'accountId 'name))
          (priority (car (rassoc (org-jira-read-priority) (jiralib-get-priorities))))
          (ticket-struct
           `((fields
@@ -1748,7 +1755,7 @@ that should be bound to an issue."
                                    "")))
              (description . ,description)
              (priority (id . ,priority))
-             (assignee (accountId . ,(or (cdr (assoc user jira-users)) user)))))))
+             (assignee (,assignee-parameter . ,(or (cdr (assoc user jira-users)) user)))))))
     ticket-struct))
 
 ;;;###autoload
